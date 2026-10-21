@@ -1,0 +1,6 @@
+{
+  "name": "Brewly",
+  "description": "Artisanal AI study companion for step-by-step problem solving, notes, flashcards, writing, and tutoring.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

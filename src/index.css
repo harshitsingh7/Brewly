@@ -1,0 +1,203 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --surface: #FAF7F2;
+    --surface-container-lowest: #ffffff;
+    --surface-container-low: #F6F3EE;
+    --surface-container: #F0EDE9;
+    --surface-container-high: #EBE8E3;
+    --surface-container-highest: #E5E2DD;
+    --on-surface: #2B1D14;
+    --on-surface-variant: #534439;
+    --primary: #C27A3E;
+    --primary-dark: #8A4C13;
+    --on-primary: #FAF7F2;
+    --secondary-container: #EFE6DA;
+    --outline: #E8E0D5;
+    --border-hairline: #E8E0D5;
+  }
+
+  html, body {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: #FAF7F2;
+    color: #2B1D14;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Universal scrollbar hide for clean editorial aesthetic */
+  ::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Material Symbols configuration */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Typography styles matching design tokens */
+.font-display {
+  font-family: 'Playfair Display', serif;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.font-headline-lg {
+  font-family: 'Playfair Display', serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.font-headline-md {
+  font-family: 'Playfair Display', serif;
+  font-weight: 500;
+  letter-spacing: 0em;
+}
+
+.font-headline-sm {
+  font-family: 'Playfair Display', serif;
+  font-weight: 600;
+  letter-spacing: 0em;
+}
+
+.font-body-lg {
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+.font-body-md {
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  letter-spacing: 0em;
+}
+
+.font-body-sm {
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+.font-label-lg {
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.font-label-md {
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.font-label-caps {
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Color alias classes for seamless compatibility with HTML template */
+.bg-surface {
+  background-color: #FAF7F2;
+}
+
+.bg-surface-container-lowest {
+  background-color: #ffffff;
+}
+
+.bg-surface-container-low {
+  background-color: #F6F3EE;
+}
+
+.bg-surface-container {
+  background-color: #F0EDE9;
+}
+
+.bg-surface-container-high {
+  background-color: #EBE8E3;
+}
+
+.bg-surface-container-highest {
+  background-color: #E5E2DD;
+}
+
+.bg-secondary-container {
+  background-color: #EFE6DA;
+}
+
+.bg-primary {
+  background-color: #8A4C13;
+}
+
+.bg-caramel {
+  background-color: #C27A3E;
+}
+
+.text-on-surface {
+  color: #2B1D14;
+}
+
+.text-on-surface-variant {
+  color: #534439;
+}
+
+.text-primary {
+  color: #8A4C13;
+}
+
+.text-caramel {
+  color: #C27A3E;
+}
+
+.text-on-primary {
+  color: #FAF7F2;
+}
+
+.border-hairline {
+  border-color: #E8E0D5;
+}
+
+/* Custom Design System Components */
+/* AI Dialogue Bubbles */
+.chat-bubble-ai {
+  background-color: #EFE6DA;
+  color: #2B1D14;
+  border-radius: 16px 16px 16px 4px;
+}
+
+.chat-bubble-user {
+  background-color: #FAF7F2;
+  color: #2B1D14;
+  border: 1px solid #E8E0D5;
+  border-radius: 16px 16px 4px 16px;
+}
+
+/* Flat Architecture Utility */
+.flat-card {
+  box-shadow: none !important;
+  border: 1px solid #E8E0D5;
+  border-radius: 16px;
+}
+
+.flat-card-caramel {
+  box-shadow: none !important;
+  border: 2px solid #C27A3E;
+  border-radius: 16px;
+}
