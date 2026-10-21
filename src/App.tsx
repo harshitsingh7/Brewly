@@ -17,6 +17,7 @@ import { TutorChatView } from './components/TutorChatView';
 import { FocusModeView } from './components/FocusModeView';
 import { CalculatorView } from './components/CalculatorView';
 import { HistoryView } from './components/HistoryView';
+import { DoubtLoungeView } from './components/DoubtLoungeView';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('solver');
@@ -97,6 +98,13 @@ export default function App() {
 
         {activeTab === 'tutor' && (
           <TutorChatView initialPrompt={tutorInitialPrompt} />
+        )}
+
+        {activeTab === 'doubt' && (
+          <DoubtLoungeView
+            onAskFollowUp={handleAskFollowUpFromSolver}
+            onMakeFlashcards={handleMakeFlashcardsFromAnywhere}
+          />
         )}
 
         {activeTab === 'writing' && <WritingAssistantView />}

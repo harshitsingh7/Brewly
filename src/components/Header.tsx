@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ActiveTab } from '../types';
-import { getSolveCountToday, isProUser } from '../services/api';
+import { getTokensRemaining } from '../services/api';
 
 interface HeaderProps {
   currentTab: ActiveTab;
@@ -17,8 +17,15 @@ export const Header: React.FC<HeaderProps> = ({
   onBack,
   titleOverride,
 }) => {
-  const isPro = isProUser();
-  const solveCount = getSolveCountToday();
+  const [tokens, setTokens] = useState(getTokensRemaining());
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setTokens(getTokensRemaining());
+    };
+    window.addEventListener('brewly-tokens-updated', handleUpdate);
+    return () => window.removeEventListener('brewly-tokens-updated', handleUpdate);
+  }, []);
 
   const getTabTitle = (tab: ActiveTab): string => {
     if (titleOverride) return titleOverride;
@@ -33,6 +40,8 @@ export const Header: React.FC<HeaderProps> = ({
         return 'Study Decks & Quiz';
       case 'tutor':
         return 'Tutor Dialogue';
+      case 'doubt':
+        return 'Doubt Lounge & Whiteboard';
       case 'writing':
         return 'Writing Companion';
       case 'focus':
@@ -42,7 +51,7 @@ export const Header: React.FC<HeaderProps> = ({
       case 'history':
         return 'Study Archive';
       case 'pricing':
-        return 'Ritual Upgrades';
+        return 'Testing Grant (10k)';
       default:
         return 'Brewly';
     }
@@ -72,35 +81,25 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Quota or Pro status badge */}
-          {isPro ? (
-            <button
-              type="button"
-              onClick={() => onNavigate('pricing')}
-              className="px-2.5 py-1 rounded-full bg-[#EFE6DA] border border-[#C27A3E] text-[#8A4C13] font-label-caps text-[11px] font-semibold flex items-center gap-1 cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[13px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                verified
-              </span>
-              <span>PRO</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => onNavigate('pricing')}
-              className="px-2.5 py-1 rounded-full bg-[#FAF7F2] border border-[#E8E0D5] text-[#534439] hover:border-[#C27A3E] font-label-caps text-[11px] font-medium flex items-center gap-1 cursor-pointer transition-colors"
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-[#C27A3E]"></span>
-              <span>{solveCount}/5 FREE</span>
-            </button>
-          )}
+          {/* Free Token Allocation Pill */}
+          <button
+            type="button"
+            onClick={() => onNavigate('pricing')}
+            className="px-2.5 py-1 rounded-full bg-[#EFE6DA] border border-[#C27A3E] text-[#8A4C13] font-label-caps text-[11px] font-semibold flex items-center gap-1 cursor-pointer hover:bg-[#EAE1D5] transition-colors"
+            title="Complimentary Testing Grant: Tap to view or refill 10k tokens"
+          >
+            <span className="material-symbols-outlined text-[13px] text-[#C27A3E]" style={{ fontVariationSettings: "'FILL' 1" }}>
+              stars
+            </span>
+            <span>{tokens.toLocaleString()} FREE TOKENS</span>
+          </button>
 
           {/* User profile avatar matching design */}
           <button
             type="button"
             onClick={() => onNavigate('pricing')}
             className="w-8 h-8 rounded-full bg-[#8A4C13] flex items-center justify-center shrink-0 text-[#FAF7F2] cursor-pointer hover:opacity-90 transition-opacity"
-            aria-label="Profile and subscription"
+            aria-label="Profile and token allocation"
           >
             <span className="material-symbols-outlined text-[18px]">person</span>
           </button>

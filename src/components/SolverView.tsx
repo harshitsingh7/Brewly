@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { AcademicLevel, Subject, SolverResult, SolverStep } from '../types';
-import { solveProblem, verifySolution, isProUser, getSolveCountToday } from '../services/api';
+import { solveProblem, verifySolution, getTokensRemaining, getSolveCountToday } from '../services/api';
 import { sound } from '../services/sound';
 
 interface SolverViewProps {
@@ -63,10 +63,9 @@ export const SolverView: React.FC<SolverViewProps> = ({
       return;
     }
 
-    const isPro = isProUser();
-    const count = getSolveCountToday();
-    if (!isPro && count >= 5) {
-      setError('Daily limit reached (5/5). Upgrade to Brewly Pro for unlimited solutions.');
+    const remaining = getTokensRemaining();
+    if (remaining <= 0) {
+      setError('Your 10,000 testing token grant has been utilized. Tap Free Refill to restore 10,000 tokens instantly.');
       onOpenPricing();
       return;
     }
@@ -99,7 +98,7 @@ export const SolverView: React.FC<SolverViewProps> = ({
       // Trigger automatic accuracy verification pass
       runVerification(res);
     } catch (err: any) {
-      if (err.isQuotaLimit) {
+      if (err.isTokenDepleted) {
         onOpenPricing();
       }
       setError(err?.message || 'Error occurred while solving. Please try again.');

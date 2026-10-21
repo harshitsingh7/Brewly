@@ -16,7 +16,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab })
     setShowToolsSheet(false);
   };
 
-  const isMoreActive = ['focus', 'calculator', 'writing', 'history'].includes(currentTab);
+  const isMoreActive = ['focus', 'calculator', 'writing', 'history', 'doubt'].includes(currentTab);
 
   return (
     <>
@@ -45,6 +45,29 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab })
             </div>
 
             <div className="grid grid-cols-2 gap-2.5 pt-1">
+              {/* Featured: Doubt Lounge with Tea & Whiteboard */}
+              <button
+                type="button"
+                onClick={() => handleTabClick('doubt')}
+                className={`col-span-2 p-3 rounded-xl border flex items-center gap-3 transition-colors text-left ${
+                  currentTab === 'doubt'
+                    ? 'bg-[#EFE6DA] border-2 border-[#C27A3E]'
+                    : 'bg-[#FAF7F2] border border-[#E8E0D5] hover:bg-[#EFE6DA]/50'
+                }`}
+              >
+                <div className="w-10 h-10 rounded-full bg-[#EFE6DA] border border-[#C27A3E] flex items-center justify-center text-[#8A4C13] shrink-0">
+                  <span className="material-symbols-outlined text-[20px]">local_cafe</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-label-md text-[13px] text-[#2B1D14] font-semibold">Spill the Doubt &amp; Whiteboard</span>
+                    <span className="bg-[#FAF7F2] text-[#8A4C13] text-[9px] px-1.5 py-0.2 rounded-full font-bold border border-[#C27A3E] uppercase">
+                      Tea ☕ &amp; Prof 🎓
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-[#534439]">Sarcastic gossip or academic whiteboard teaching with live pen</div>
+                </div>
+              </button>
               <button
                 type="button"
                 onClick={() => handleTabClick('focus')}
@@ -242,13 +265,13 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab })
             <div className="relative">
               <span
                 className="material-symbols-outlined text-[22px]"
-                style={{ fontVariationSettings: currentTab === 'pricing' ? "'FILL' 1" : "'FILL' 1" }}
+                style={{ fontVariationSettings: currentTab === 'pricing' ? "'FILL' 1" : "'FILL' 0" }}
               >
-                local_cafe
+                stars
               </span>
               <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#C27A3E]"></span>
             </div>
-            <span className="font-label-caps text-[10px] tracking-normal mt-0.5 font-bold">Pro</span>
+            <span className="font-label-caps text-[10px] tracking-normal mt-0.5 font-bold">Free</span>
           </button>
         </div>
       </nav>

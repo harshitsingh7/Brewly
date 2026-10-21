@@ -32,6 +32,25 @@ function safeParseJson<T>(rawText: string, fallback: T): T {
   }
 }
 
+// Helper to extract or estimate token count from request/response
+function getTokensUsed(response: any, fallbackLength: number = 500): number {
+  if (response?.usageMetadata?.totalTokenCount) {
+    return response.usageMetadata.totalTokenCount;
+  }
+  return Math.max(120, Math.round(fallbackLength / 4));
+}
+
+// Token Grant status endpoint
+app.get('/api/token-grant', (_req, res) => {
+  return res.json({
+    initial_grant: 10000,
+    model: 'gemini-3.8-flash',
+    status: 'active',
+    unlimited_refills: true,
+    message: '10,000 complimentary testing tokens granted for evaluation. All features are 100% free with unlimited refills.'
+  });
+});
+
 // 1. SOLVER ENDPOINT
 app.post('/api/solve', async (req, res) => {
   try {
@@ -109,7 +128,8 @@ Respond ONLY with a valid JSON object matching this schema:
         ],
         final_answer: 'Verified Result: Detailed analytical solution',
         confidence: 'High',
-        key_takeaway: 'Always re-check boundary conditions and maintain precision throughout transformations.'
+        key_takeaway: 'Always re-check boundary conditions and maintain precision throughout transformations.',
+        tokens_used: 210,
       });
     }
 
@@ -144,7 +164,8 @@ ${jsonSchemaInstruction}`;
       },
     });
 
-    const parsed = safeParseJson(response.text || '', null);
+    const parsed = safeParseJson<any>(response.text || '', null);
+    const tokensUsed = getTokensUsed(response, response.text?.length || 800);
     if (!parsed) {
       // Retry once
       const retryResponse = await ai.models.generateContent({
@@ -152,11 +173,17 @@ ${jsonSchemaInstruction}`;
         contents: [{ text: `Format this solution into strict JSON according to schema:\n${response.text}` }],
         config: { temperature: 0.0, responseMimeType: 'application/json' },
       });
-      const retryParsed = safeParseJson(retryResponse.text || '', null);
-      return res.json(retryParsed || { error: 'Failed to format solution JSON', raw: response.text });
+      const retryParsed = safeParseJson<any>(retryResponse.text || '', null);
+      return res.json({
+        ...(retryParsed || { error: 'Failed to format solution JSON', raw: response.text }),
+        tokens_used: tokensUsed,
+      });
     }
 
-    return res.json(parsed);
+    return res.json({
+      ...parsed,
+      tokens_used: tokensUsed,
+    });
   } catch (error: any) {
     console.error('Solve error:', error);
     return res.status(500).json({ error: error?.message || 'Error executing solver' });
@@ -572,6 +599,179 @@ Return strictly JSON:
   }
 });
 
+// 8. DOUBT LOUNGE & LIVE WHITEBOARD TEACHING ENDPOINT
+app.post('/api/doubt-lounge', async (req, res) => {
+  try {
+    const { doubt = '', mode = 'tea', subject = 'General' } = req.body;
+
+    if (!doubt.trim()) {
+      return res.status(400).json({ error: 'Please submit a doubt or concept to unpack.' });
+    }
+
+    const isTea = mode === 'tea';
+
+    const systemInstruction = isTea
+      ? `You are Brewly's iconic, hilarious, sarcastic coffee-shop tutor who breaks down difficult academic doubts by "spilling the tea". 
+You treat scientific mechanisms, equations, historical events, economic policies, and academic theories as juicy drama, chaotic feuds, and unbelievable gossip, while ensuring the underlying science and facts are 100% rigorous and accurate.
+Tone: Sarcastic, high-energy, witty, deeply relatable ("Bestie", "Sit down because the drama is unreal", "She really thought she could violate the 2nd law of thermodynamics"), full of sharp analogies.
+You must also construct visual whiteboard items representing what you draw with your marker pen in real-time on the board.`
+      : `You are a distinguished university professor and master pedagogue at an elite academic institution.
+You explain the student's doubt with exemplary pedagogical precision, conceptual depth, elegant structure, and dignified scholarly clarity.
+Tone: Authoritative, patient, articulate, intellectually elevated.
+You must also construct visual whiteboard items representing the formal schematics, formula boxes, and conceptual diagrams you illustrate with your pen on the board.`;
+
+    const prompt = `Student Doubt / Topic: "${doubt}"
+Subject Area: ${subject}
+Teaching Persona: ${isTea ? 'Sarcastic Coffee Gossip ("Spill The Tea")' : 'Distinguished University Professor ("Professional")'}
+
+Respond ONLY with a valid JSON object matching this schema:
+{
+  "mode": "${mode}",
+  "teaching_speech": "Compelling, thorough monologue teaching the concept step-by-step (${isTea ? 'in full sarcastic, tea-spilling gossip glory' : 'in scholarly, structured lecture form'}). At least 3-4 rich paragraphs.",
+  "verdict_badge": "${isTea ? 'The Gossip Verdict ☕💅' : 'Theoretical Corollary 📜'}",
+  "verdict_summary": "1-2 sentence punchy takeaway",
+  "whiteboard_title": "Concise board title",
+  "whiteboard_items": [
+    {
+      "step": 1,
+      "kind": "heading" | "formula" | "box" | "arrow" | "doodle_note" | "highlight",
+      "title": "Label for this board node",
+      "text": "Exact text or equation written on the board",
+      "sketch_symbol": "Relevant emoji or symbol e.g. ☕, ⚡, 🧬, 📈, 🔄, 💥, 🔍, ⚖️",
+      "color": "caramel" | "espresso" | "latte" | "accent"
+    }
+  ]
+}`;
+
+    if (!ai) {
+      if (isTea) {
+        return res.json({
+          mode: 'tea',
+          teaching_speech: `Bestie, grab your iced latte and pull up a chair because the drama behind "${doubt}" is honestly scandalous. Everybody in the textbook acts like this was a polite, peaceful consensus, but in reality, these variables have been beefing since 1850! You see, the moment one parameter tries to show off and inflate itself, the conservation laws literally stage an intervention. It's like inviting your toxic ex to brunch—inevitable entropy and absolute chaos. So when people ask why this rule exists, tell them: because the universe simply refused to tolerate that level of audacity.`,
+          verdict_badge: 'The Gossip Verdict ☕💅',
+          verdict_summary: 'The universe does not tolerate sloppy math or unverified boundary conditions. Period.',
+          whiteboard_title: 'The Drama of ' + doubt.slice(0, 24),
+          whiteboard_items: [
+            {
+              step: 1,
+              kind: 'heading',
+              title: 'Act I: The Audacity',
+              text: 'Variable A tries to expand without paying the thermodynamic toll.',
+              sketch_symbol: '☕',
+              color: 'caramel'
+            },
+            {
+              step: 2,
+              kind: 'box',
+              title: 'The Feud (Core Mechanism)',
+              text: 'Conservation Law enters the chat: ΔS_universe ≥ 0. No free lunches allowed.',
+              sketch_symbol: '⚡',
+              color: 'espresso'
+            },
+            {
+              step: 3,
+              kind: 'arrow',
+              title: 'The Fallout',
+              text: 'System forced into equilibrium. Drama canceled, stability restored.',
+              sketch_symbol: '🔄',
+              color: 'accent'
+            },
+            {
+              step: 4,
+              kind: 'doodle_note',
+              title: 'Spilled Tea Rule',
+              text: 'Never violate the boundary condition or the universe will clock you.',
+              sketch_symbol: '💅',
+              color: 'latte'
+            }
+          ],
+          tokens_used: 160
+        });
+      } else {
+        return res.json({
+          mode: 'professional',
+          teaching_speech: `When addressing "${doubt}", we must approach the inquiry through first principles and rigorous analytical formulation. Rather than treating this phenomenon in isolation, let us trace its governing mechanics from foundational conservation theorems. Notice that at every inflection point, the system balances internal potential against dissipative resistances, ensuring analytical consistency across boundary domains.`,
+          verdict_badge: 'Theoretical Corollary 📜',
+          verdict_summary: 'Fundamental equilibrium is maintained through reciprocal constraint dynamics across all state spaces.',
+          whiteboard_title: 'Analytical Schematic: ' + doubt.slice(0, 24),
+          whiteboard_items: [
+            {
+              step: 1,
+              kind: 'heading',
+              title: 'I. Foundational Postulate',
+              text: 'Initial condition statement: State vector X(t) bounded on domain Ω.',
+              sketch_symbol: '⚖️',
+              color: 'espresso'
+            },
+            {
+              step: 2,
+              kind: 'formula',
+              title: 'II. Governing Equation',
+              text: 'd/dt [ ∫ Ψ dV ] + ∇ · J = Σ_source (Continuity Form)',
+              sketch_symbol: '📐',
+              color: 'caramel'
+            },
+            {
+              step: 3,
+              kind: 'box',
+              title: 'III. Asymptotic Convergence',
+              text: 'As t → ∞, system trajectories collapse into unique stable manifold.',
+              sketch_symbol: '📈',
+              color: 'espresso'
+            },
+            {
+              step: 4,
+              kind: 'highlight',
+              title: 'IV. Synthesis',
+              text: 'Empirical validity confirmed under canonical boundary invariants.',
+              sketch_symbol: '🎓',
+              color: 'latte'
+            }
+          ],
+          tokens_used: 160
+        });
+      }
+    }
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: [{ text: prompt }],
+      config: {
+        systemInstruction,
+        temperature: isTea ? 0.4 : 0.2,
+        responseMimeType: 'application/json',
+      },
+    });
+
+    const parsed = safeParseJson<any>(response.text || '', null);
+    const tokensUsed = getTokensUsed(response, response.text?.length || 800);
+
+    return res.json({
+      ...(parsed || {
+        mode,
+        teaching_speech: response.text || 'Explanation formulated.',
+        verdict_badge: isTea ? 'The Gossip Verdict ☕💅' : 'Theoretical Corollary 📜',
+        verdict_summary: 'Key principle summarized on board.',
+        whiteboard_title: doubt.slice(0, 30),
+        whiteboard_items: [
+          {
+            step: 1,
+            kind: 'heading',
+            title: 'Concept Breakdown',
+            text: doubt,
+            sketch_symbol: '☕',
+            color: 'caramel'
+          }
+        ]
+      }),
+      tokens_used: tokensUsed,
+    });
+  } catch (err: any) {
+    console.error('Doubt lounge error:', err);
+    return res.status(500).json({ error: err?.message || 'Failed to explain doubt' });
+  }
+});
+
 // 7. TUTOR CHAT ENDPOINT
 app.post('/api/chat', async (req, res) => {
   try {
@@ -583,67 +783,135 @@ Subject: ${subject}.
 Tone: Calm, supportive, intellectually clear, and encouraging. Never condescending.
 Always answer thoroughly, break down difficult ideas into manageable concepts, and end your response with 2 short, thoughtful adaptive follow-up prompts the student could ask next.`;
 
-    const formattedContents: any[] = [];
-    for (const msg of messages) {
-      formattedContents.push({
-        role: msg.role === 'assistant' || msg.role === 'model' ? 'model' : 'user',
-        parts: [{ text: msg.content }],
+    // Filter and sanitize messages for Gemini multi-turn format requirements:
+    // 1. Roles must be 'user' or 'model'
+    // 2. The first turn MUST have role 'user' (Gemini rejects histories starting with 'model')
+    // 3. Consecutive turns with the same role must be merged
+    // 4. Empty parts are not permitted
+    const rawList = (Array.isArray(messages) ? messages : [])
+      .filter((m: any) => m && typeof m.content === 'string' && m.content.trim().length > 0)
+      .map((m: any) => ({
+        role: m.role === 'assistant' || m.role === 'model' ? 'model' : 'user',
+        text: m.content.trim(),
+      }));
+
+    // Find the first user message (skip initial assistant greetings)
+    const firstUserIndex = rawList.findIndex((m: any) => m.role === 'user');
+    const validTurnList = firstUserIndex !== -1 ? rawList.slice(firstUserIndex) : [];
+
+    // Merge consecutive messages of the same role
+    const sanitizedContents: any[] = [];
+    for (const item of validTurnList) {
+      if (sanitizedContents.length === 0) {
+        sanitizedContents.push({
+          role: 'user',
+          parts: [{ text: item.text }],
+        });
+      } else {
+        const last = sanitizedContents[sanitizedContents.length - 1];
+        if (last.role === item.role) {
+          last.parts[0].text += '\n\n' + item.text;
+        } else {
+          sanitizedContents.push({
+            role: item.role,
+            parts: [{ text: item.text }],
+          });
+        }
+      }
+    }
+
+    if (sanitizedContents.length === 0) {
+      sanitizedContents.push({
+        role: 'user',
+        parts: [{ text: `Hello Brewly, please tutor me in ${subject} at the ${level} level.` }],
       });
     }
 
-    if (!ai) {
-      return res.json({
-        reply: `That is an insightful question at the ${level} level. In ${subject}, when examining this principle, we observe how foundational rules govern outcomes under varied conditions. Let us break it down into its core moving parts.`,
-        follow_ups: [
-          'Can you show me a concrete example problem?',
-          'What is the intuition behind this formula?'
-        ]
-      });
+    let replyText = '';
+    let tokensUsed = 150;
+
+    if (ai) {
+      try {
+        const chatResponse = await ai.models.generateContent({
+          model: 'gemini-3.8-flash',
+          contents: sanitizedContents,
+          config: {
+            systemInstruction,
+            temperature: 0.3,
+          },
+        });
+
+        replyText = chatResponse.text || '';
+        tokensUsed = getTokensUsed(chatResponse, replyText.length);
+      } catch (geminiError: any) {
+        console.warn('Gemini chat generateContent encountered error:', geminiError?.message);
+        // Fallback to single-turn prompt with full context if multi-turn rejected
+        try {
+          const lastUserMsg = sanitizedContents[sanitizedContents.length - 1]?.parts?.[0]?.text || '';
+          const singleTurnPrompt = `${systemInstruction}\n\nStudent question: ${lastUserMsg}`;
+          const fallbackRes = await ai.models.generateContent({
+            model: 'gemini-3.8-flash',
+            contents: [{ text: singleTurnPrompt }],
+            config: { temperature: 0.3 },
+          });
+          replyText = fallbackRes.text || '';
+          tokensUsed = getTokensUsed(fallbackRes, replyText.length);
+        } catch (singleErr: any) {
+          console.error('Single-turn fallback also failed:', singleErr?.message);
+        }
+      }
     }
 
-    const chatResponse = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: formattedContents,
-      config: {
-        systemInstruction,
-        temperature: 0.3,
-      },
-    });
+    // Default intelligent tutoring response if API was offline or unavailable
+    if (!replyText) {
+      const lastUserQuestion = sanitizedContents[sanitizedContents.length - 1]?.parts?.[0]?.text || 'your inquiry';
+      replyText = `Regarding "${lastUserQuestion.slice(0, 100)}": In ${subject} at the ${level} level, this concept relies on understanding foundational mechanics. Consider how each governing factor interacts and where equilibrium or boundary conditions arise. Let's explore the first step together.`;
+    }
 
-    const replyText = chatResponse.text || '';
-    
-    // Extract follow-ups or generate intelligent follow-ups
-    const followUpPrompt = `Based on this tutor response:
-"${replyText.slice(0, 1000)}"
-List exactly 2 concise, natural follow-up questions the student might ask next.
-Format as JSON: ["Question 1", "Question 2"]`;
-
+    // Extract or provide intelligent follow-up suggestions
     let follow_ups = [
-      'Can you show an example of this?',
-      'How does this apply in practice?'
+      'Can you show me a step-by-step example?',
+      'What is the practical intuition behind this?'
     ];
 
-    try {
-      const fRes = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: [{ text: followUpPrompt }],
-        config: { temperature: 0.3, responseMimeType: 'application/json' },
-      });
-      const parsedFollowUps = safeParseJson<string[]>(fRes.text || '', follow_ups);
-      if (Array.isArray(parsedFollowUps) && parsedFollowUps.length > 0) {
-        follow_ups = parsedFollowUps.slice(0, 2);
+    if (ai && replyText.length > 50) {
+      try {
+        const followUpPrompt = `Based on this tutor response:
+"${replyText.slice(0, 800)}"
+List exactly 2 concise, natural follow-up questions (under 10 words each) the student might ask next.
+Format as JSON: ["Question 1", "Question 2"]`;
+
+        const fRes = await ai.models.generateContent({
+          model: 'gemini-3.8-flash',
+          contents: [{ text: followUpPrompt }],
+          config: { temperature: 0.3, responseMimeType: 'application/json' },
+        });
+
+        const parsedFollowUps = safeParseJson<string[]>(fRes.text || '', follow_ups);
+        if (Array.isArray(parsedFollowUps) && parsedFollowUps.length > 0) {
+          follow_ups = parsedFollowUps.slice(0, 2);
+        }
+      } catch {
+        // Keep standard follow-ups
       }
-    } catch (e) {
-      // Keep defaults
     }
 
     return res.json({
       reply: replyText,
       follow_ups,
+      tokens_used: tokensUsed,
     });
   } catch (err: any) {
     console.error('Chat error:', err);
-    return res.status(500).json({ error: err?.message || 'Chat failed' });
+    // Never send 500 error for chat—always return a graceful response
+    return res.json({
+      reply: 'I am right here with you. Could you rephrase or ask that question one more time? We will break it down together.',
+      follow_ups: [
+        'Can we start with a simpler example?',
+        'What are the core concepts here?'
+      ],
+      tokens_used: 50,
+    });
   }
 });
 

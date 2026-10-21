@@ -88,12 +88,31 @@ export interface WritingResult {
   suggestions?: WritingSuggestion[];
 }
 
+export interface WhiteboardItem {
+  step: number;
+  kind: 'heading' | 'formula' | 'box' | 'arrow' | 'doodle_note' | 'highlight' | string;
+  title: string;
+  text: string;
+  sketch_symbol?: string;
+  color?: string;
+}
+
+export interface DoubtExplanation {
+  mode: 'tea' | 'professional';
+  teaching_speech: string;
+  verdict_badge: string;
+  verdict_summary: string;
+  whiteboard_title: string;
+  whiteboard_items: WhiteboardItem[];
+}
+
 export type ActiveTab =
   | 'solver'
   | 'reader'
   | 'notes'
   | 'flashcards'
   | 'tutor'
+  | 'doubt'
   | 'writing'
   | 'focus'
   | 'calculator'

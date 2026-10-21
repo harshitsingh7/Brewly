@@ -15,7 +15,8 @@ Brewly is a calm, focused AI study companion designed around a minimalist, warm 
 9. **Focus Mode**: 25/5 Pomodoro ritual with Web Audio sound chimes and quiet background cafe ambient hum.
 10. **Scientific Calculator**: Keypad with trigonometric functions, exponents, roots, logarithms, and direct bridge to the Solver.
 11. **Study History**: LocalStorage archive of all previous solves and lecture notes.
-12. **Pricing & Ritual Upgrades**: Free vs Pro tier with Monthly/Yearly toggles, 5-solves/day quota enforcement, student discount verification, and 7-day trial activation.
+12. **Pricing & Ritual Upgrades**: Free tier testing grant with 10k free tokens, instant refills, student discount verification, and 7-day trial simulation.
+13. **Spill The Doubt Lounge & Live Whiteboard**: Submit any academic doubt and learn either through **"Spill the Tea ☕💅"** (sarcastic gossip and drama breakdown) or **"Professional 🎓📜"** (distinguished lecture), accompanied by a **live animated teacher whiteboard** with moving pen stylus, step-by-step schematics, formulas, doodle notes, and audio narration.
 
 ## Setup Instructions
 

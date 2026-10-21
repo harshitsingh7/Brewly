@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { isProUser, setProStatus, getSolveCountToday } from '../services/api';
+import React, { useState, useEffect } from 'react';
+import { getTokensRemaining, refillFreeTokens, INITIAL_FREE_TOKEN_GRANT, getSolveCountToday } from '../services/api';
 import { sound } from '../services/sound';
 
 interface PricingViewProps {
@@ -7,11 +7,18 @@ interface PricingViewProps {
   onPlanChanged?: () => void;
 }
 
-export const PricingView: React.FC<PricingViewProps> = ({ onBack, onPlanChanged }) => {
-  const [billing, setBilling] = useState<'monthly' | 'yearly'>('yearly');
+export const PricingView: React.FC<PricingViewProps> = ({ onPlanChanged }) => {
+  const [tokensRemaining, setTokensRemaining] = useState(getTokensRemaining());
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [isPro, setIsPro] = useState(isProUser());
   const solveCount = getSolveCountToday();
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setTokensRemaining(getTokensRemaining());
+    };
+    window.addEventListener('brewly-tokens-updated', handleUpdate);
+    return () => window.removeEventListener('brewly-tokens-updated', handleUpdate);
+  }, []);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -21,23 +28,14 @@ export const PricingView: React.FC<PricingViewProps> = ({ onBack, onPlanChanged 
     }, 4000);
   };
 
-  const handleStartTrial = () => {
-    setProStatus(true);
-    setIsPro(true);
+  const handleRefill = () => {
+    const refilled = refillFreeTokens(INITIAL_FREE_TOKEN_GRANT);
+    setTokensRemaining(refilled);
     onPlanChanged?.();
-    showToast('☕ 7-Day trial activated! Welcome to Brewly Espresso Pro.');
+    showToast('✨ 10,000 Free Tokens granted! Enjoy unrestricted testing.');
   };
 
-  const handleRevertToFree = () => {
-    setProStatus(false);
-    setIsPro(false);
-    onPlanChanged?.();
-    showToast('Switched back to Brewly Drip (Free Plan).');
-  };
-
-  const handleVerifyStudent = () => {
-    showToast('Student discount code applied: 20% off with verified .edu email.');
-  };
+  const tokenPercent = Math.min(100, Math.max(0, (tokensRemaining / INITIAL_FREE_TOKEN_GRANT) * 100));
 
   return (
     <div className="flex flex-col w-full pb-10">
@@ -48,14 +46,14 @@ export const PricingView: React.FC<PricingViewProps> = ({ onBack, onPlanChanged 
             local_cafe
           </span>
           <span className="font-label-caps text-label-caps uppercase tracking-wider text-on-surface-variant font-semibold">
-            Study Ritual Upgrades
+            Study Testing Grant
           </span>
         </div>
         <h2 className="font-headline-lg text-headline-lg text-on-surface tracking-tight mb-2">
-          Brew Smarter with <span className="italic font-normal">Brewly Pro</span>
+          Brew Smarter with <span className="italic font-normal">Free Access</span>
         </h2>
         <p className="font-body-md text-body-md text-on-surface-variant max-w-xs mx-auto">
-          Unlimited step-by-step solutions, voice notes, and 24/7 AI tutoring.
+          10,000 complimentary AI tokens provided for testing. Payments removed—everything is free.
         </p>
       </section>
 
@@ -71,53 +69,18 @@ export const PricingView: React.FC<PricingViewProps> = ({ onBack, onPlanChanged 
           <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-[#C27A3E] animate-pulse"></span>
-              <span className="font-label-md text-label-md text-on-surface font-medium">Calm, undistracted AI companion</span>
+              <span className="font-label-md text-label-md text-on-surface font-medium">Free testing mode active</span>
             </div>
             <span className="font-label-caps text-label-caps text-on-surface-variant bg-[#FAF7F2]/80 px-2 py-0.5 rounded-full">
-              Quiet Focus
+              Full Access Unlocked
             </span>
           </div>
         </div>
       </div>
 
-      {/* Minimalist Billing Toggle */}
-      <div className="w-full flex justify-center mb-7">
-        <div className="inline-flex items-center p-1 rounded-full bg-surface-container-high" style={{ border: '1px solid #E8E0D5' }}>
-          <button
-            type="button"
-            onClick={() => setBilling('monthly')}
-            className={`px-4 py-2 rounded-full font-label-md text-label-md transition-all ${
-              billing === 'monthly'
-                ? 'bg-primary text-on-primary font-semibold shadow-none'
-                : 'text-on-surface-variant hover:text-on-surface'
-            }`}
-          >
-            Monthly
-          </button>
-          <button
-            type="button"
-            onClick={() => setBilling('yearly')}
-            className={`px-4 py-2 rounded-full font-label-md text-label-md transition-all flex items-center gap-1.5 ${
-              billing === 'yearly'
-                ? 'bg-primary text-on-primary font-semibold shadow-none'
-                : 'text-on-surface-variant hover:text-on-surface'
-            }`}
-          >
-            <span>Yearly</span>
-            <span
-              className={`font-label-caps text-[10px] leading-tight px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${
-                billing === 'yearly' ? 'bg-[#FAF7F2] text-primary' : 'bg-secondary-container text-on-surface'
-              }`}
-            >
-              Save 30%
-            </span>
-          </button>
-        </div>
-      </div>
-
-      {/* Pricing Cards Stack */}
+      {/* Token Balance Live Status Card */}
       <div className="flex flex-col gap-6">
-        {/* Pro Tier Card (Caramel Highlighted) */}
+        {/* Pro / Free Testing Card (Caramel Highlighted) */}
         <article className="relative flex flex-col p-6 rounded-2xl bg-secondary-container" style={{ border: '2px solid #C27A3E' }}>
           {/* Pill Badge */}
           <div
@@ -128,35 +91,43 @@ export const PricingView: React.FC<PricingViewProps> = ({ onBack, onPlanChanged 
               stars
             </span>
             <span className="font-label-caps text-label-caps uppercase text-primary font-bold tracking-wider">
-              MOST POPULAR · 7-DAY FREE TRIAL
+              COMPLIMENTARY TESTING GRANT · 10K TOKENS
             </span>
           </div>
 
-          {/* Header & Price */}
+          {/* Header & Token Balance */}
           <div className="flex items-baseline justify-between mb-1">
-            <h3 className="font-headline-md text-headline-md text-on-surface">Brewly Espresso Pro</h3>
+            <h3 className="font-headline-md text-headline-md text-on-surface">Brewly Testing Grant</h3>
           </div>
           <div className="flex items-baseline gap-1.5 mb-1">
             <span className="font-display text-display text-on-surface font-semibold tracking-tight">
-              {billing === 'yearly' ? '$8.99' : '$12.99'}
+              {tokensRemaining.toLocaleString()}
             </span>
-            <span className="font-body-md text-body-md text-on-surface-variant">/ month</span>
+            <span className="font-body-md text-body-md text-on-surface-variant">/ 10,000 tokens remaining</span>
+          </div>
+
+          {/* Token Progress Bar */}
+          <div className="w-full h-2 bg-[#FAF7F2] rounded-full overflow-hidden mb-2 mt-1 border border-[#E8E0D5]">
+            <div
+              className="h-full bg-[#C27A3E] transition-all duration-300"
+              style={{ width: `${tokenPercent}%` }}
+            />
           </div>
           <p className="font-body-sm text-body-sm text-on-surface-variant mb-5">
-            {billing === 'yearly' ? 'Billed annually at $79/year (Save $28.88)' : 'Billed monthly · Cancel anytime before renewal'}
+            Unlimited free refills for testing. No payment info or credit card needed.
           </p>
 
           {/* Hairline divider */}
           <div className="w-full h-px mb-5" style={{ backgroundColor: '#E8E0D5' }}></div>
 
-          {/* Pro Features List */}
+          {/* Unlocked Features List */}
           <ul className="flex flex-col gap-3.5 mb-7">
             <li className="flex items-start gap-3">
               <span className="material-symbols-outlined text-primary text-[20px] shrink-0" style={{ fontVariationSettings: "'FILL' 1" }}>
                 check_circle
               </span>
               <span className="font-body-md text-body-md text-on-surface font-medium leading-snug">
-                Unlimited instant homework solutions
+                Unlimited homework solutions (No daily 5-solve limit)
               </span>
             </li>
             <li className="flex items-start gap-3">
@@ -172,7 +143,7 @@ export const PricingView: React.FC<PricingViewProps> = ({ onBack, onPlanChanged 
                 check_circle
               </span>
               <span className="font-body-md text-body-md text-on-surface leading-snug">
-                Unlimited lecture voice notes &amp; summaries
+                Unlimited lecture voice notes &amp; AI summaries
               </span>
             </li>
             <li className="flex items-start gap-3">
@@ -193,130 +164,83 @@ export const PricingView: React.FC<PricingViewProps> = ({ onBack, onPlanChanged 
             </li>
           </ul>
 
-          {/* Primary Action Button */}
-          {isPro ? (
-            <div className="flex flex-col gap-2">
-              <div className="w-full h-12 rounded-2xl bg-primary text-on-primary font-label-lg text-label-lg flex items-center justify-center gap-2">
-                <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                  verified
-                </span>
-                <span>Pro Membership Active</span>
-              </div>
-              <button
-                type="button"
-                onClick={handleRevertToFree}
-                className="text-xs text-center text-on-surface-variant hover:text-primary transition-colors underline pt-1"
-              >
-                Switch back to Free tier for testing
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={handleStartTrial}
-              className="w-full h-12 rounded-2xl bg-primary text-on-primary font-label-lg text-label-lg flex items-center justify-center gap-2 transition-transform active:scale-[0.98] cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[20px]">local_cafe</span>
-              <span>Start 7-Day Free Trial</span>
-            </button>
-          )}
+          {/* Primary Action: Free Refill */}
+          <button
+            type="button"
+            onClick={handleRefill}
+            className="w-full h-12 rounded-2xl bg-primary text-on-primary font-label-lg text-label-lg flex items-center justify-center gap-2 transition-transform active:scale-[0.98] cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-[20px]">refresh</span>
+            <span>Refill 10,000 Free Tokens</span>
+          </button>
 
           <div className="flex items-center justify-center gap-2 mt-3 text-center">
-            <span className="material-symbols-outlined text-[14px] text-primary">lock</span>
-            <span className="font-body-sm text-body-sm text-on-surface-variant">No charge today · Cancel anytime in 1 tap</span>
+            <span className="material-symbols-outlined text-[14px] text-primary">lock_open</span>
+            <span className="font-body-sm text-body-sm text-on-surface-variant">
+              100% Free · No payment required · Instant reset
+            </span>
           </div>
         </article>
 
-        {/* Free Tier Card */}
+        {/* System Specs Card */}
         <article className="flex flex-col p-5 rounded-2xl bg-surface" style={{ border: '1px solid #E8E0D5' }}>
           <div className="flex items-baseline justify-between mb-1">
-            <h3 className="font-headline-sm text-headline-sm text-on-surface">Brewly Drip</h3>
-            <span className="font-label-caps text-label-caps px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-medium">
-              BASIC
+            <h3 className="font-headline-sm text-headline-sm text-on-surface">Testing Environment</h3>
+            <span className="font-label-caps text-label-caps px-2 py-0.5 rounded-full bg-surface-container text-primary font-bold">
+              FREE TIER
             </span>
           </div>
           <div className="flex items-baseline gap-1.5 mb-1">
             <span className="font-headline-lg text-headline-lg text-on-surface font-semibold">$0</span>
-            <span className="font-body-md text-body-md text-on-surface-variant">/ month</span>
+            <span className="font-body-md text-body-md text-on-surface-variant">/ unrestricted</span>
           </div>
           <p className="font-body-sm text-body-sm text-on-surface-variant mb-4">
-            Gentle everyday study essentials to stay on track.
+            Total solves performed today: {solveCount} (Unlimited allowed).
           </p>
 
-          {/* Daily Quota Counter Banner */}
-          <div className="mb-4 px-3 py-2 rounded-xl bg-surface-container flex items-center justify-between text-xs">
-            <span className="text-on-surface-variant">Today's Solves:</span>
-            <span className={`font-semibold ${solveCount >= 5 ? 'text-red-700' : 'text-primary'}`}>
-              {solveCount} / 5 used
-            </span>
-          </div>
-
-          {/* Hairline divider */}
           <div className="w-full h-px mb-4" style={{ backgroundColor: '#E8E0D5' }}></div>
 
-          {/* Free Features List */}
-          <ul className="flex flex-col gap-3 mb-6">
+          <ul className="flex flex-col gap-3 mb-4">
             <li className="flex items-start gap-2.5">
               <span className="material-symbols-outlined text-primary text-[18px] shrink-0">check</span>
-              <span className="font-body-md text-body-md text-on-surface leading-snug">5 homework solutions per day</span>
-            </li>
-            <li className="flex items-start gap-2.5">
-              <span className="material-symbols-outlined text-primary text-[18px] shrink-0">check</span>
-              <span className="font-body-md text-body-md text-on-surface leading-snug">Basic step-by-step explanations</span>
-            </li>
-            <li className="flex items-start gap-2.5">
-              <span className="material-symbols-outlined text-primary text-[18px] shrink-0">check</span>
-              <span className="font-body-md text-body-md text-on-surface leading-snug">2 audio notes per week</span>
-            </li>
-            <li className="flex items-start gap-2.5 opacity-55">
-              <span className="material-symbols-outlined text-on-surface-variant text-[18px] shrink-0">close</span>
-              <span className="font-body-md text-body-md text-on-surface-variant leading-snug line-through">
-                Unlimited follow-ups
+              <span className="font-body-md text-body-md text-on-surface leading-snug">
+                Gemini 3.8 Flash API enabled
               </span>
             </li>
-            <li className="flex items-start gap-2.5 opacity-55">
-              <span className="material-symbols-outlined text-on-surface-variant text-[18px] shrink-0">close</span>
-              <span className="font-body-md text-body-md text-on-surface-variant leading-snug line-through">
-                Instant exam-prep quizzes
+            <li className="flex items-start gap-2.5">
+              <span className="material-symbols-outlined text-primary text-[18px] shrink-0">check</span>
+              <span className="font-body-md text-body-md text-on-surface leading-snug">
+                Multimodal photo problem scanning
+              </span>
+            </li>
+            <li className="flex items-start gap-2.5">
+              <span className="material-symbols-outlined text-primary text-[18px] shrink-0">check</span>
+              <span className="font-body-md text-body-md text-on-surface leading-snug">
+                Independent AI accuracy verification
               </span>
             </li>
           </ul>
-
-          {/* Current Plan Button */}
-          <button
-            type="button"
-            disabled={!isPro}
-            onClick={handleRevertToFree}
-            className={`w-full h-12 rounded-2xl font-label-lg text-label-lg flex items-center justify-center transition-all ${
-              !isPro
-                ? 'bg-secondary-container text-on-surface opacity-85 cursor-default'
-                : 'bg-surface text-primary border border-hairline hover:bg-secondary-container'
-            }`}
-            style={{ border: '1px solid #E8E0D5' }}
-          >
-            {!isPro ? 'Current Plan' : 'Downgrade to Free'}
-          </button>
         </article>
       </div>
 
-      {/* Student Discount Callout Module */}
+      {/* Campus Perk Callout Module */}
       <section className="mt-6 p-4 rounded-2xl bg-surface-container-low flex items-center gap-3.5" style={{ border: '1px solid #E8E0D5' }}>
         <div className="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center shrink-0 text-primary">
           <span className="material-symbols-outlined text-[20px]">school</span>
         </div>
         <div className="flex-1 min-w-0">
-          <h4 className="font-headline-sm text-[15px] text-on-surface leading-tight">Student Academic Perk</h4>
+          <h4 className="font-headline-sm text-[15px] text-on-surface leading-tight">Campus Testing Edition</h4>
           <p className="font-body-sm text-body-sm text-on-surface-variant truncate">
-            Extra 20% off with any verified .edu email address.
+            All features are complimentary for students, tutors, and reviewers.
           </p>
         </div>
         <button
           type="button"
-          onClick={handleVerifyStudent}
+          onClick={() => showToast('Student access confirmed. Full test grant active!')}
           className="px-3 py-1.5 rounded-full bg-surface font-label-md text-label-md text-primary font-medium shrink-0 hover:bg-secondary-container transition-colors"
           style={{ border: '1px solid #E8E0D5' }}
         >
-          Verify
+          Active
         </button>
       </section>
 
@@ -345,7 +269,7 @@ export const PricingView: React.FC<PricingViewProps> = ({ onBack, onPlanChanged 
           </span>
           <span className="w-1 h-1 rounded-full bg-outline-variant" style={{ backgroundColor: '#D8C2B5' }}></span>
           <span className="flex items-center gap-1 font-body-sm text-body-sm">
-            <span className="material-symbols-outlined text-[15px] text-primary">restart_alt</span> Cancel anytime
+            <span className="material-symbols-outlined text-[15px] text-primary">all_inclusive</span> Free testing
           </span>
           <span className="w-1 h-1 rounded-full bg-outline-variant" style={{ backgroundColor: '#D8C2B5' }}></span>
           <span className="flex items-center gap-1 font-body-sm text-body-sm">
@@ -353,11 +277,11 @@ export const PricingView: React.FC<PricingViewProps> = ({ onBack, onPlanChanged 
           </span>
         </div>
         <p className="font-body-sm text-[12px] text-on-surface-variant opacity-80 mt-1 max-w-xs">
-          Student discount available with verified .edu email. Prices shown in USD. Terms &amp; Privacy apply.
+          Free academic evaluation edition. Powered by Gemini API with 10k token grant.
         </p>
       </footer>
 
-      {/* Micro-interaction Toast Notification */}
+      {/* Toast Notification */}
       {toastMessage && (
         <div
           className="fixed bottom-20 left-4 right-4 max-w-md mx-auto p-4 rounded-xl text-[#FAF7F2] bg-[#31302D] flex items-center justify-between z-50 transition-all duration-300"
