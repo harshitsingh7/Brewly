@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { getTokensRemaining, refillFreeTokens, INITIAL_FREE_TOKEN_GRANT, getSolveCountToday } from '../services/api';
+import {
+  getTokensRemaining,
+  refillFreeTokens,
+  INITIAL_FREE_TOKEN_GRANT,
+  getSolveCountToday,
+  getCustomApiKey,
+  setCustomApiKey,
+  validateCustomApiKey,
+} from '../services/api';
 import { sound } from '../services/sound';
 
 interface PricingViewProps {
@@ -12,12 +20,28 @@ export const PricingView: React.FC<PricingViewProps> = ({ onPlanChanged }) => {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const solveCount = getSolveCountToday();
 
+  // Custom API key state
+  const [apiKeyInput, setApiKeyInput] = useState(getCustomApiKey());
+  const [currentKey, setCurrentKey] = useState(getCustomApiKey());
+  const [isValidatingKey, setIsValidatingKey] = useState(false);
+  const [showKeyText, setShowKeyText] = useState(false);
+  const [keyFeedback, setKeyFeedback] = useState<{ success?: boolean; message?: string } | null>(null);
+
   useEffect(() => {
     const handleUpdate = () => {
       setTokensRemaining(getTokensRemaining());
     };
+    const handleKeyUpdate = () => {
+      const activeKey = getCustomApiKey();
+      setCurrentKey(activeKey);
+      setApiKeyInput(activeKey);
+    };
     window.addEventListener('brewly-tokens-updated', handleUpdate);
-    return () => window.removeEventListener('brewly-tokens-updated', handleUpdate);
+    window.addEventListener('brewly-api-key-updated', handleKeyUpdate);
+    return () => {
+      window.removeEventListener('brewly-tokens-updated', handleUpdate);
+      window.removeEventListener('brewly-api-key-updated', handleKeyUpdate);
+    };
   }, []);
 
   const showToast = (msg: string) => {
@@ -33,6 +57,43 @@ export const PricingView: React.FC<PricingViewProps> = ({ onPlanChanged }) => {
     setTokensRemaining(refilled);
     onPlanChanged?.();
     showToast('✨ 10,000 Free Tokens granted! Enjoy unrestricted testing.');
+  };
+
+  const handleSaveAndTestKey = async () => {
+    const trimmed = apiKeyInput.trim();
+    if (!trimmed) {
+      setCustomApiKey('');
+      setCurrentKey('');
+      setKeyFeedback({ success: true, message: 'Reverted to shared server key with multi-model fallback.' });
+      showToast('Switched to shared server key with multi-model fallback.');
+      return;
+    }
+
+    setIsValidatingKey(true);
+    setKeyFeedback(null);
+    try {
+      const res = await validateCustomApiKey(trimmed);
+      if (res.valid) {
+        setCustomApiKey(trimmed);
+        setCurrentKey(trimmed);
+        setKeyFeedback({ success: true, message: res.message || 'Key connected and verified successfully!' });
+        showToast('✨ Google AI Studio Key verified and connected!');
+      } else {
+        setKeyFeedback({ success: false, message: res.message || 'Verification failed. Please check key.' });
+      }
+    } catch (e: any) {
+      setKeyFeedback({ success: false, message: e?.message || 'Verification failed.' });
+    } finally {
+      setIsValidatingKey(false);
+    }
+  };
+
+  const handleClearKey = () => {
+    setApiKeyInput('');
+    setCustomApiKey('');
+    setCurrentKey('');
+    setKeyFeedback(null);
+    showToast('Removed custom key. Reverted to shared server key.');
   };
 
   const tokenPercent = Math.min(100, Math.max(0, (tokensRemaining / INITIAL_FREE_TOKEN_GRANT) * 100));
@@ -182,6 +243,142 @@ export const PricingView: React.FC<PricingViewProps> = ({ onPlanChanged }) => {
           </div>
         </article>
 
+        {/* Google AI Studio Free API Key Card (Launch & Testing Key Manager) */}
+        <article className="flex flex-col p-6 rounded-2xl bg-surface" style={{ border: '1.5px solid #E8E0D5' }}>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary text-[22px]">vpn_key</span>
+              <h3 className="font-headline-sm text-headline-sm text-on-surface">Google AI Studio API Key</h3>
+            </div>
+            <span className="font-label-caps text-label-caps px-2 py-0.5 rounded-full bg-secondary-container text-primary font-bold">
+              100% FREE
+            </span>
+          </div>
+
+          <p className="font-body-sm text-body-sm text-on-surface-variant mb-4">
+            Connect your own free API key from Google AI Studio. This gives you private, unrestricted rate limits (15 RPM free, high daily quota) so your website tests never run into shared 429 limits.
+          </p>
+
+          {/* Current Status Badge */}
+          <div className="p-3 rounded-xl mb-4 bg-surface-container-low flex items-center justify-between border border-[#E8E0D5]">
+            <div className="flex items-center gap-2.5">
+              <span
+                className={`w-2.5 h-2.5 rounded-full ${
+                  currentKey ? 'bg-emerald-600 animate-pulse' : 'bg-[#C27A3E]'
+                }`}
+              />
+              <div className="flex flex-col">
+                <span className="font-label-md text-label-md text-on-surface font-semibold">
+                  {currentKey ? 'Personal AI Studio Key Active' : 'Shared Server Key Active'}
+                </span>
+                <span className="font-body-sm text-[12px] text-on-surface-variant">
+                  {currentKey
+                    ? 'Using your dedicated Google AI Studio quota (15 RPM free)'
+                    : 'Auto-fallback chain across 4 Gemini models (gemini-2.5-flash priority)'}
+                </span>
+              </div>
+            </div>
+            {currentKey && (
+              <span className="font-label-caps text-[10px] text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full font-bold">
+                CONNECTED
+              </span>
+            )}
+          </div>
+
+          {/* Input & Action */}
+          <div className="flex flex-col gap-2.5 mb-3">
+            <label className="font-label-md text-label-md text-on-surface font-medium flex items-center justify-between">
+              <span>API Key</span>
+              <a
+                href="https://aistudio.google.com/app/apikey"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline text-[12px] inline-flex items-center gap-1 font-medium"
+              >
+                <span>Get free key at aistudio.google.com</span>
+                <span className="material-symbols-outlined text-[13px]">open_in_new</span>
+              </a>
+            </label>
+
+            <div className="relative flex items-center">
+              <input
+                type={showKeyText ? 'text' : 'password'}
+                value={apiKeyInput}
+                onChange={(e) => setApiKeyInput(e.target.value)}
+                placeholder="Paste AIzaSy... (leave blank for server default)"
+                className="w-full h-11 px-3.5 pr-20 rounded-xl bg-surface-container text-on-surface font-mono text-[13px] border border-[#E8E0D5] focus:outline-none focus:border-primary transition-colors"
+              />
+              <button
+                type="button"
+                onClick={() => setShowKeyText(!showKeyText)}
+                className="absolute right-2 px-2 py-1 text-on-surface-variant hover:text-on-surface text-[12px] rounded"
+                title={showKeyText ? 'Hide key' : 'Show key'}
+              >
+                <span className="material-symbols-outlined text-[18px]">
+                  {showKeyText ? 'visibility_off' : 'visibility'}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Key Validation Feedback */}
+          {keyFeedback && (
+            <div
+              className={`p-2.5 rounded-xl text-body-sm text-[13px] mb-3 flex items-center gap-2 ${
+                keyFeedback.success
+                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                  : 'bg-rose-50 text-rose-800 border border-rose-200'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[16px]">
+                {keyFeedback.success ? 'check_circle' : 'warning'}
+              </span>
+              <span>{keyFeedback.message}</span>
+            </div>
+          )}
+
+          {/* Button actions */}
+          <div className="flex items-center gap-2.5 mt-1">
+            <button
+              type="button"
+              disabled={isValidatingKey}
+              onClick={handleSaveAndTestKey}
+              className="flex-1 h-10 rounded-xl bg-primary text-on-primary font-label-md text-label-md font-medium flex items-center justify-center gap-1.5 transition-transform active:scale-[0.98] disabled:opacity-60 cursor-pointer"
+            >
+              {isValidatingKey ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-white/60 border-t-white rounded-full animate-spin" />
+                  <span>Validating Key...</span>
+                </>
+              ) : (
+                <>
+                  <span className="material-symbols-outlined text-[17px]">check</span>
+                  <span>Connect &amp; Test Key</span>
+                </>
+              )}
+            </button>
+
+            {currentKey && (
+              <button
+                type="button"
+                onClick={handleClearKey}
+                className="h-10 px-3.5 rounded-xl bg-surface-container text-on-surface-variant hover:text-on-surface font-label-md text-label-md border border-[#E8E0D5] flex items-center gap-1 cursor-pointer"
+                title="Revert to shared server key"
+              >
+                <span className="material-symbols-outlined text-[16px]">restart_alt</span>
+                <span>Reset</span>
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1.5 mt-3 text-center justify-center">
+            <span className="material-symbols-outlined text-[14px] text-primary">info</span>
+            <span className="font-body-sm text-[12px] text-on-surface-variant">
+              Keys are stored privately in your browser session. Free tier requires no credit card.
+            </span>
+          </div>
+        </article>
+
         {/* System Specs Card */}
         <article className="flex flex-col p-5 rounded-2xl bg-surface" style={{ border: '1px solid #E8E0D5' }}>
           <div className="flex items-baseline justify-between mb-1">
@@ -204,19 +401,25 @@ export const PricingView: React.FC<PricingViewProps> = ({ onPlanChanged }) => {
             <li className="flex items-start gap-2.5">
               <span className="material-symbols-outlined text-primary text-[18px] shrink-0">check</span>
               <span className="font-body-md text-body-md text-on-surface leading-snug">
-                Gemini 3.8 Flash API enabled
+                Gemini 2.5 Flash + Flash Lite + 3.8 Flash multi-model fallback
               </span>
             </li>
             <li className="flex items-start gap-2.5">
               <span className="material-symbols-outlined text-primary text-[18px] shrink-0">check</span>
               <span className="font-body-md text-body-md text-on-surface leading-snug">
-                Multimodal photo problem scanning
+                Auto-resilient 429 quota handling (Zero crashes)
               </span>
             </li>
             <li className="flex items-start gap-2.5">
               <span className="material-symbols-outlined text-primary text-[18px] shrink-0">check</span>
               <span className="font-body-md text-body-md text-on-surface leading-snug">
-                Independent AI accuracy verification
+                Multimodal photo problem scanning &amp; canvas compression
+              </span>
+            </li>
+            <li className="flex items-start gap-2.5">
+              <span className="material-symbols-outlined text-primary text-[18px] shrink-0">check</span>
+              <span className="font-body-md text-body-md text-on-surface leading-snug">
+                Independent AI accuracy verification badge
               </span>
             </li>
           </ul>

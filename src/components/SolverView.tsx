@@ -28,26 +28,65 @@ export const SolverView: React.FC<SolverViewProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [currentResult, setCurrentResult] = useState<SolverResult | null>(null);
 
+  const [loadingPhase, setLoadingPhase] = useState('Analyzing problem...');
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const loadingTimerRef = useRef<any>(null);
 
   const subjects: Subject[] = ['Math', 'Physics', 'Chemistry', 'Biology', 'Economics', 'Essay'];
   const levels: AcademicLevel[] = ['Middle school', 'High school', 'College', 'Graduate'];
 
-  // Handle image upload
-  const handleImageFile = (file: File) => {
+  // Fast client-side image downsampler: reduces 10MB mobile photos to ~100KB for near-instant upload
+  const resizeImageFile = (file: File): Promise<{ base64: string; mimeType: string }> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 1200;
+          let width = img.width;
+          let height = img.height;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve({ base64: e.target?.result as string, mimeType: file.type });
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+          resolve({ base64: dataUrl, mimeType: 'image/jpeg' });
+        };
+        img.onerror = () => resolve({ base64: e.target?.result as string, mimeType: file.type });
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => resolve({ base64: '', mimeType: file.type });
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // Handle image upload with auto-downsampling
+  const handleImageFile = async (file: File) => {
     if (!file.type.startsWith('image/')) {
       setError('Please upload a valid image file (PNG, JPG, WebP).');
       return;
     }
-    setMimeType(file.type);
-    const reader = new FileReader();
-    reader.onload = () => {
-      const b64 = reader.result as string;
-      setImagePreview(b64);
-      setImageBase64(b64);
-      setError(null);
-    };
-    reader.readAsDataURL(file);
+    setError(null);
+    const { base64, mimeType: outMime } = await resizeImageFile(file);
+    setImagePreview(base64);
+    setImageBase64(base64);
+    setMimeType(outMime);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -73,6 +112,17 @@ export const SolverView: React.FC<SolverViewProps> = ({
     setLoading(true);
     setLoadingMode(mode === 'simpler' ? 'simpler' : mode === 'alternative' ? 'alternative' : 'solve');
     setError(null);
+    setElapsedSeconds(0);
+    setLoadingPhase('Reading givens and constraints...');
+
+    const startTime = Date.now();
+    if (loadingTimerRef.current) clearInterval(loadingTimerRef.current);
+    loadingTimerRef.current = setInterval(() => {
+      const elapsed = (Date.now() - startTime) / 1000;
+      setElapsedSeconds(Math.round(elapsed * 10) / 10);
+      if (elapsed >= 1.6) setLoadingPhase('Finalizing highlighted answer...');
+      else if (elapsed >= 0.8) setLoadingPhase('Deriving step-by-step logic...');
+    }, 300);
 
     try {
       const res = await solveProblem({
@@ -95,7 +145,7 @@ export const SolverView: React.FC<SolverViewProps> = ({
         localStorage.setItem('brewly_history_solves', JSON.stringify([res, ...list.slice(0, 29)]));
       } catch (e) {}
 
-      // Trigger automatic accuracy verification pass
+      // Trigger automatic accuracy verification pass (non-blocking)
       runVerification(res);
     } catch (err: any) {
       if (err.isTokenDepleted) {
@@ -103,6 +153,7 @@ export const SolverView: React.FC<SolverViewProps> = ({
       }
       setError(err?.message || 'Error occurred while solving. Please try again.');
     } finally {
+      if (loadingTimerRef.current) clearInterval(loadingTimerRef.current);
       setLoading(false);
     }
   };
@@ -340,7 +391,7 @@ export const SolverView: React.FC<SolverViewProps> = ({
         {loading && loadingMode === 'solve' ? (
           <div className="flex items-center gap-2">
             <span className="w-4 h-4 border-2 border-[#FAF7F2] border-t-transparent rounded-full animate-spin"></span>
-            <span>Solving step by step...</span>
+            <span>{loadingPhase} ({elapsedSeconds.toFixed(1)}s)</span>
           </div>
         ) : (
           <>
